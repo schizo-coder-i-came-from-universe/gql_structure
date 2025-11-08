@@ -90,5 +90,37 @@
             "user_id": "89d1f34a-ae0f-11ed-9bd8-0242ac110002", 
             "event_id": "45b2df80-ae0f-11ed-9bd8-0242ac110002"
         }
+    ],
+
+    "notes": [
+        {
+            "id": "17da9097-6c29-41bf-9d69-4317db9e7df2",
+            "body": "Demo note visible to the default user",
+            "author_id": "2d9dc5ca-a4a2-11ed-b9df-0242ac120003",
+            "can_edit": [
+                "2d9dc5ca-a4a2-11ed-b9df-0242ac120003",
+                "89d1e724-ae0f-11ed-9bd8-0242ac110002"
+            ],
+            "can_read": [
+                "2d9dc5ca-a4a2-11ed-b9df-0242ac120003",
+                "89d1e724-ae0f-11ed-b9df-0242ac110002"
+            ],
+            "blocked": []
+        },
+        {
+            "id": "b5074628-1f12-4a86-a050-20d8e1bd6e5c",
+            "body": "Blocked for the default user",
+            "author_id": "89d1e724-ae0f-11ed-9bd8-0242ac110002",
+            "can_edit": [
+                "89d1e724-ae0f-11ed-9bd8-0242ac110002"
+            ],
+            "can_read": [
+                "2d9dc5ca-a4a2-11ed-b9df-0242ac120003",
+                "89d1e724-ae0f-11ed-9bd8-0242ac110002"
+            ],
+            "blocked": [
+                "2d9dc5ca-a4a2-11ed-b9df-0242ac120003"
+            ]
+        }
     ]    
 }

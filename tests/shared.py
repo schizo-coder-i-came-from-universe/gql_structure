@@ -9,7 +9,7 @@ import pytest
 
 # from ..uoishelpers.uuid import UUIDColumn
 
-from DBDefinitions import BaseModel, EventModel
+from DBDefinitions import BaseModel, EventModel, NoteModel
 
 
 async def prepare_in_memory_sqllite():
@@ -40,7 +40,8 @@ async def prepare_demodata(async_session_maker):
     await ImportModels(
         async_session_maker,
         [
-            EventModel
+            EventModel,
+            NoteModel
         ],
         data,
     )

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from .baseDBModel import BaseModel
 from .eventDBModel import EventModel
 from .eventuserDBModel import EventUserModel
+from .noteDBModel import NoteModel
 
 async def startEngine(connectionstring, makeDrop=False, makeUp=True):
     """Provede nezbytne ukony a vrati asynchronni SessionMaker"""

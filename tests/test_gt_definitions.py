@@ -394,3 +394,60 @@ test_query_user_with_events = createFrontendQuery(
         lambda data: runAssert(data.get("result", None) is not None, "expected data.result")
     ]
 )
+
+NOTE_ALLOWED_ID = "17da9097-6c29-41bf-9d69-4317db9e7df2"
+NOTE_BLOCKED_ID = "b5074628-1f12-4a86-a050-20d8e1bd6e5c"
+
+@pytest.mark.asyncio
+async def test_note_author_can_read():
+    async_session_maker = await prepare_in_memory_sqllite()
+    await prepare_demodata(async_session_maker)
+    context_value = createContext(async_session_maker)
+    query = """
+        query($id: UUID!) {
+            result: noteById(id: $id) {
+                id
+                body
+            }
+        }"""
+    variables = {"id": NOTE_ALLOWED_ID}
+
+    resp = await schema.execute(
+        query=query,
+        variable_values=variables,
+        context_value=context_value,
+    )
+
+    assert resp.errors is None
+    assert resp.data is not None
+    assert resp.data["result"]["id"] == NOTE_ALLOWED_ID
+    assert resp.data["result"]["body"] == "Demo note visible to the default user"
+
+
+@pytest.mark.asyncio
+async def test_note_blocked_user_cannot_read():
+    async_session_maker = await prepare_in_memory_sqllite()
+    await prepare_demodata(async_session_maker)
+    context_value = createContext(async_session_maker)
+    query = """
+        query($id: UUID!) {
+            result: noteById(id: $id) {
+                id
+                body
+            }
+        }"""
+    variables = {"id": NOTE_BLOCKED_ID}
+
+    resp = await schema.execute(
+        query=query,
+        variable_values=variables,
+        context_value=context_value,
+    )
+
+    assert resp.data is not None
+    assert resp.data["result"] is None
+    assert resp.errors is not None
+    assert any(
+        "not allowed to read this note" in error.message.lower()
+        for error in resp.errors
+    )

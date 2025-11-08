@@ -1,7 +1,9 @@
 import logging
 from functools import cache
 from DBDefinitions import (
-    EventModel, EventUserModel
+    EventModel,
+    EventUserModel,
+    NoteModel,
     )
 from sqlalchemy.future import select
 
@@ -45,7 +47,8 @@ async def initDB(asyncSessionMaker):
     if not(default == os.environ.get("DEMO", defaultNoDemo)):
         dbModels = dbModels + [
             EventModel,
-            EventUserModel
+            EventUserModel,
+            NoteModel,
         ]
 
     jsonData = get_demodata()
