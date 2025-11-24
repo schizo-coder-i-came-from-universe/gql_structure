@@ -5,11 +5,12 @@ from sqlalchemy.orm import sessionmaker
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
 
 from .BaseModel import BaseModel
 from .EventDBModel import EventModel
 from .EventInvitationModel import EventInvitationModel
-from .NoteDBModel import NoteModel, NotePermissionModel
+from .NoteDBModel import NoteModel
 
 async def startEngine(connectionstring, makeDrop=False, makeUp=True):
     """Provede nezbytne ukony a vrati asynchronni SessionMaker"""
@@ -17,6 +18,9 @@ async def startEngine(connectionstring, makeDrop=False, makeUp=True):
 
     async with asyncEngine.begin() as conn:
         if makeDrop:
+            # Legacy cleanup: ensure old note permission table disappears even though
+            # it is no longer described in metadata, otherwise FK constraints block drop_all.
+            await conn.execute(text("DROP TABLE IF EXISTS note_permissions_evolution CASCADE"))
             await conn.run_sync(BaseModel.metadata.drop_all)
             print("BaseModel.metadata.drop_all finished")
         if makeUp:
