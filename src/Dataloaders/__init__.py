@@ -5,7 +5,8 @@ from src.DBDefinitions import BaseModel
 from src.DBDefinitions import (
     EventModel,
     EventInvitationModel,
-
+    NoteModel,
+    NotePermissionModel,
 )
 
 from uoishelpers.dataloaders.LoaderMapBase import LoaderMapBase
@@ -20,6 +21,8 @@ class LoaderMap(LoaderMapBase[BaseModel]):
 
     EventModel: IDLoader[src.DBDefinitions.EventModel] = None
     EventInvitationModel: IDLoader[src.DBDefinitions.EventInvitationModel] = None
+    NoteModel: IDLoader[src.DBDefinitions.NoteModel] = None
+    NotePermissionModel: IDLoader[src.DBDefinitions.NotePermissionModel] = None
 
 
     def __init__(self, session):
@@ -27,6 +30,8 @@ class LoaderMap(LoaderMapBase[BaseModel]):
 
         self.EventModel = self.get(EventModel)
         self.EventInvitationModel = self.get(EventInvitationModel)
+        self.NoteModel = self.get(NoteModel)
+        self.NotePermissionModel = self.get(NotePermissionModel)
 
         # print(f"LoaderMap created with session: {session}")
 

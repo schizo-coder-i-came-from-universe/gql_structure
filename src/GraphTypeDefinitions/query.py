@@ -2,9 +2,10 @@ import strawberry
 
 from .EventGQLModel import EventQuery
 from .EventInvitationGQLModel import EventInvitationQuery
+from .NoteGQLModel import NoteQuery
 
 @strawberry.type(description="""Type for query root""")
-class Query(EventQuery, EventInvitationQuery):
+class Query(EventQuery, EventInvitationQuery, NoteQuery):
     @strawberry.field(
         description="""Returns hello world"""
         )

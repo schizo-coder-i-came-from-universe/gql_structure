@@ -10337,6 +10337,44 @@
             "user_id": "ccb397ad-0de7-46e7-bff0-42452f11dd5e",
             "state_id": null
         }
+    ],
+    "notes_evolution": [
+        {
+            "id": "3f8da72c-26cd-4f83-8627-1707b7730ba5",
+            "title": "First demo note",
+            "content": "Illustrates how personal notes are stored",
+            "owner_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e",
+            "created": "2024-08-11T21:45:07.000000",
+            "lastchange": "2024-08-11T21:45:07.000000",
+            "createdby_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e",
+            "changedby_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e",
+            "rbacobject_id": null
+        },
+        {
+            "id": "1bc6b810-76d3-4d30-bf01-d1914c917650",
+            "title": "Shared lesson note",
+            "content": "Contains details shared with collaborators",
+            "owner_id": "b141a228-f780-4116-9bf1-d5f2c60478f8",
+            "created": "2024-08-11T21:45:07.100000",
+            "lastchange": "2024-08-11T21:45:07.100000",
+            "createdby_id": "b141a228-f780-4116-9bf1-d5f2c60478f8",
+            "changedby_id": "b141a228-f780-4116-9bf1-d5f2c60478f8",
+            "rbacobject_id": null
+        }
+    ],
+    "note_permissions_evolution": [
+        {
+            "id": "a29ed520-a3f7-4d95-b8f7-7d91eeb9eba7",
+            "note_id": "3f8da72c-26cd-4f83-8627-1707b7730ba5",
+            "user_id": "b141a228-f780-4116-9bf1-d5f2c60478f8",
+            "permission_level": "READ"
+        },
+        {
+            "id": "3ccce9c9-f38e-4d45-9a7b-d4dcf9903535",
+            "note_id": "1bc6b810-76d3-4d30-bf01-d1914c917650",
+            "user_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e",
+            "permission_level": "EDIT"
+        }
     ]
 
 }
