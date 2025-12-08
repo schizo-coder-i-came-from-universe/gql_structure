@@ -38,7 +38,7 @@ from .BaseGQLModel import BaseGQLModel, IDType
 UserGQLModel = typing.Annotated["UserGQLModel", strawberry.lazy(".UserGQLModel")]
 NoteGQLModelRef = typing.Annotated["NoteGQLModel", strawberry.lazy(".NoteGQLModel")]
 
-NOTE_ALLOWED_ROLES = ["note-owner", "note-editor"]
+NOTE_ALLOWED_ROLES = ["note-owner", "note-editor", "administrátor"]
 
 
 class NoteInsertPrepareExtension(FieldExtension):
