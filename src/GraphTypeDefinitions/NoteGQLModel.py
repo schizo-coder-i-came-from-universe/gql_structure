@@ -24,7 +24,6 @@ from uoishelpers.resolvers import (
     InsertError,
     InputModelMixin,
     PageResolver,
-    ScalarResolver,
     Update,
     UpdateError,
     createInputs2,
@@ -36,29 +35,23 @@ from .BaseGQLModel import BaseGQLModel, IDType
 
 
 UserGQLModel = typing.Annotated["UserGQLModel", strawberry.lazy(".UserGQLModel")]
-NoteGQLModelRef = typing.Annotated["NoteGQLModel", strawberry.lazy(".NoteGQLModel")]
 
-#NOTE_ALLOWED_ROLES = ["note-owner", "note-editor", "administrátor"]
-NOTE_ALLOWED_ROLES = ["note-owner", "note-editor"]
+NOTE_ALLOWED_ROLES = ["note-owner", "note-editor", "administrátor"]
+#NOTE_ALLOWED_ROLES = ["note-owner", "note-editor"]
 
 class NoteInsertPrepareExtension(FieldExtension):
     """
-    Ensures owner/rbacobject values are derived from the authenticated user
+    Ensures rbacobject_id is derived from the authenticated user
     before the RBAC pipeline kicks in.
     """
 
     async def resolve_async(self, next_, source, info: strawberry.types.Info, *args, **kwargs):
         note_input = kwargs.get("note", None)
         if note_input is not None:
-            owner_id = getattr(note_input, "owner_id", None)
-            if owner_id is None:
-                user = getUserFromInfo(info=info)
-                owner_id = IDType(user["id"])
-                note_input.owner_id = owner_id
-
             target_rbacobject = getattr(note_input, "rbacobject_id", None)
             if target_rbacobject is None:
-                target_rbacobject = owner_id
+                user = getUserFromInfo(info=info)
+                target_rbacobject = IDType(user["id"])
                 note_input.rbacobject_id = target_rbacobject
 
             if hasattr(note_input, "set_rbacobject_id"):
@@ -74,7 +67,6 @@ class NoteInputFilter:
         description="Filters by the note title; supports the standard string operators used in other filters"
     )
     content: str = strawberry.field(description="Filters notes whose content matches the provided condition")
-    owner_id: IDType = strawberry.field(description="Filters notes by the owning user's id")
     createdby_id: IDType = strawberry.field(description="Filters notes by the creator's user id")
 
 
@@ -97,18 +89,6 @@ class NoteGQLModel(BaseGQLModel):
         default=None,
         permission_classes=[OnlyForAuthentized],
     )
-    owner_id: typing.Optional[IDType] = strawberry.field(
-        description="Identifier of the user who owns the note",
-        default=None,
-        permission_classes=[OnlyForAuthentized],
-    )
-
-    owner: typing.Optional[UserGQLModel] = strawberry.field(
-        description="Resolved user entity matching owner_id",
-        permission_classes=[OnlyForAuthentized],
-        resolver=ScalarResolver[UserGQLModel](fkey_field_name="owner_id"),
-    )
-
 
 
 # region Notes query
@@ -123,7 +103,7 @@ class NoteQuery:
     )
 
     note_page: typing.List[NoteGQLModel] = strawberry.field(
-        description="Returns notes matching the provided filter (title/content/owner/creator)",
+        description="Returns notes matching the provided filter (title/content/creator)",
         permission_classes=[OnlyForAuthentized],
         resolver=PageResolver[NoteGQLModel](whereType=NoteInputFilter),
     )
@@ -146,9 +126,6 @@ class NoteInsertGQLModel(InputModelMixin):
     content: typing.Optional[str] = strawberry.field(
         description="Note content", default=None
     )
-    owner_id: typing.Optional[IDType] = strawberry.field(
-        description="Owner identifier, defaults to current user", default=None
-    )
     rbacobject_id: strawberry.Private[IDType] = None
     createdby_id: strawberry.Private[IDType] = None
     changedby_id: strawberry.Private[IDType] = None
@@ -165,9 +142,6 @@ class NoteUpdateGQLModel:
     title: typing.Optional[str] = strawberry.field(description="Note title", default=None)
     content: typing.Optional[str] = strawberry.field(
         description="Note content", default=None
-    )
-    owner_id: typing.Optional[IDType] = strawberry.field(
-        description="Owner identifier", default=None
     )
     
 
@@ -246,7 +220,7 @@ class NoteMutation:
         return await Update[NoteGQLModel].DoItSafeWay(info=info, entity=note)
 
     @strawberry.field(
-        description="Updates an existing note owned by the caller (creator or owner)",
+        description="Updates an existing note created by the caller",
         permission_classes=[OnlyForAuthentized],
         extensions=[LoadDataExtension[UpdateError, NoteGQLModel]()],
     )
@@ -263,20 +237,14 @@ class NoteMutation:
         user = getUserFromInfo(info=info)
         user_id = IDType(user["id"])
 
-        owner_candidates = [
-            getattr(db_row, "owner_id", None),
-            getattr(db_row, "createdby_id", None),
-        ]
-        is_owner = any(candidate == user_id for candidate in owner_candidates if candidate is not None)
+        is_owner = getattr(db_row, "createdby_id", None) == user_id
         if not is_owner:
             return UpdateError[NoteGQLModel](
                 _entity=db_row,
-                msg="you can update only your own note",
+                msg="you can update only notes you created",
                 _input=note,
             )
 
-        # Preserve ownership; owner changes require elevated path
-        note.owner_id = getattr(db_row, "owner_id", None)
         return await Update[NoteGQLModel].DoItSafeWay(info=info, entity=note)
 
     @strawberry.field(
@@ -310,7 +278,7 @@ class NoteMutation:
         return await Delete[NoteGQLModel].DoItSafeWay(info=info, entity=note)
 
     @strawberry.field(
-        description="Deletes a note owned by the caller (creator or owner) using optimistic locking",
+        description="Deletes a note created by the caller using optimistic locking",
         permission_classes=[OnlyForAuthentized],
         extensions=[LoadDataExtension[DeleteError, NoteGQLModel]()],
     )
@@ -327,15 +295,11 @@ class NoteMutation:
         user = getUserFromInfo(info=info)
         user_id = IDType(user["id"])
 
-        owner_candidates = [
-            getattr(db_row, "owner_id", None),
-            getattr(db_row, "createdby_id", None),
-        ]
-        is_owner = any(candidate == user_id for candidate in owner_candidates if candidate is not None)
+        is_owner = getattr(db_row, "createdby_id", None) == user_id
         if not is_owner:
             return DeleteError[NoteGQLModel](
                 _entity=db_row,
-                msg="you can delete only your own note",
+                msg="you can delete only notes you created",
                 _input=note,
             )
 
