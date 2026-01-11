@@ -38,8 +38,8 @@ from .BaseGQLModel import BaseGQLModel, IDType
 UserGQLModel = typing.Annotated["UserGQLModel", strawberry.lazy(".UserGQLModel")]
 NoteGQLModelRef = typing.Annotated["NoteGQLModel", strawberry.lazy(".NoteGQLModel")]
 
-NOTE_ALLOWED_ROLES = ["note-owner", "note-editor", "administrátor"]
-
+#NOTE_ALLOWED_ROLES = ["note-owner", "note-editor", "administrátor"]
+NOTE_ALLOWED_ROLES = ["note-owner", "note-editor"]
 
 class NoteInsertPrepareExtension(FieldExtension):
     """
@@ -246,6 +246,40 @@ class NoteMutation:
         return await Update[NoteGQLModel].DoItSafeWay(info=info, entity=note)
 
     @strawberry.field(
+        description="Updates an existing note owned by the caller (creator or owner)",
+        permission_classes=[OnlyForAuthentized],
+        extensions=[LoadDataExtension[UpdateError, NoteGQLModel]()],
+    )
+    async def note_update_own(
+        self,
+        info: strawberry.types.Info,
+        note: NoteUpdateGQLModel = strawberry.argument(
+            description="Note payload including id and lastchange to be updated"
+        ),
+        db_row: typing.Any = strawberry.argument(
+            description="Existing note row loaded by LoadDataExtension"
+        ),
+    ) -> typing.Union[NoteGQLModel, UpdateError[NoteGQLModel]]:
+        user = getUserFromInfo(info=info)
+        user_id = IDType(user["id"])
+
+        owner_candidates = [
+            getattr(db_row, "owner_id", None),
+            getattr(db_row, "createdby_id", None),
+        ]
+        is_owner = any(candidate == user_id for candidate in owner_candidates if candidate is not None)
+        if not is_owner:
+            return UpdateError[NoteGQLModel](
+                _entity=db_row,
+                msg="you can update only your own note",
+                _input=note,
+            )
+
+        # Preserve ownership; owner changes require elevated path
+        note.owner_id = getattr(db_row, "owner_id", None)
+        return await Update[NoteGQLModel].DoItSafeWay(info=info, entity=note)
+
+    @strawberry.field(
         description="Deletes an existing note using optimistic locking via lastchange",
         permission_classes=[OnlyForAuthentized],
         extensions=[
@@ -273,6 +307,38 @@ class NoteMutation:
             description="Caller roles injected by UserRoleProviderExtension"
         ),
     ) -> typing.Optional[DeleteError[NoteGQLModel]]:
+        return await Delete[NoteGQLModel].DoItSafeWay(info=info, entity=note)
+
+    @strawberry.field(
+        description="Deletes a note owned by the caller (creator or owner) using optimistic locking",
+        permission_classes=[OnlyForAuthentized],
+        extensions=[LoadDataExtension[DeleteError, NoteGQLModel]()],
+    )
+    async def note_delete_own(
+        self,
+        info: strawberry.types.Info,
+        note: NoteDeleteGQLModel = strawberry.argument(
+            description="Target note identifier with the lastchange timestamp"
+        ),
+        db_row: typing.Any = strawberry.argument(
+            description="Existing note row loaded by LoadDataExtension"
+        ),
+    ) -> typing.Optional[DeleteError[NoteGQLModel]]:
+        user = getUserFromInfo(info=info)
+        user_id = IDType(user["id"])
+
+        owner_candidates = [
+            getattr(db_row, "owner_id", None),
+            getattr(db_row, "createdby_id", None),
+        ]
+        is_owner = any(candidate == user_id for candidate in owner_candidates if candidate is not None)
+        if not is_owner:
+            return DeleteError[NoteGQLModel](
+                _entity=db_row,
+                msg="you can delete only your own note",
+                _input=note,
+            )
+
         return await Delete[NoteGQLModel].DoItSafeWay(info=info, entity=note)
 
 # endregion
