@@ -43,8 +43,8 @@ NOTE_ALLOWED_ROLES = ["note-owner", "note-editor", "administrátor"]
 
 class NoteInsertPrepareExtension(FieldExtension):
     """
-    Normalizes owner information before the RBAC pipeline kicks in so that
-    RbacInsertProviderExtension can pull a non-null rbacobject_id.
+    Ensures owner/rbacobject values are derived from the authenticated user
+    before the RBAC pipeline kicks in.
     """
 
     async def resolve_async(self, next_, source, info: strawberry.types.Info, *args, **kwargs):
@@ -69,37 +69,42 @@ class NoteInsertPrepareExtension(FieldExtension):
 
 @createInputs2
 class NoteInputFilter:
-    id: IDType
-    title: str
-    content: str
-    owner_id: IDType
-    createdby_id: IDType
+    id: IDType = strawberry.field(description="Filters a single note by its unique identifier")
+    title: str = strawberry.field(
+        description="Filters by the note title; supports the standard string operators used in other filters"
+    )
+    content: str = strawberry.field(description="Filters notes whose content matches the provided condition")
+    owner_id: IDType = strawberry.field(description="Filters notes by the owning user's id")
+    createdby_id: IDType = strawberry.field(description="Filters notes by the creator's user id")
 
 
-@strawberry.federation.type(description="A note entry", keys=["id"])
+@strawberry.federation.type(
+    description="A user-owned free-form note that can store a title and text content",
+    keys=["id"],
+)
 class NoteGQLModel(BaseGQLModel):
     @classmethod
     def getLoader(cls, info: strawberry.types.Info):
         return getLoadersFromInfo(info).NoteModel
 
     title: typing.Optional[str] = strawberry.field(
-        description="Human readable title of the note",
+        description="Human readable title shown in note listings",
         default=None,
         permission_classes=[OnlyForAuthentized],
     )
     content: typing.Optional[str] = strawberry.field(
-        description="Note text content",
+        description="Full text content of the note (plain text or markdown)",
         default=None,
         permission_classes=[OnlyForAuthentized],
     )
     owner_id: typing.Optional[IDType] = strawberry.field(
-        description="Owner of the note",
+        description="Identifier of the user who owns the note",
         default=None,
         permission_classes=[OnlyForAuthentized],
     )
 
     owner: typing.Optional[UserGQLModel] = strawberry.field(
-        description="Resolved owner of the note",
+        description="Resolved user entity matching owner_id",
         permission_classes=[OnlyForAuthentized],
         resolver=ScalarResolver[UserGQLModel](fkey_field_name="owner_id"),
     )
@@ -109,16 +114,16 @@ class NoteGQLModel(BaseGQLModel):
 # region Notes query
 
 
-@strawberry.type(description="Query support for notes")
+@strawberry.type(description="Queries for reading notes")
 class NoteQuery:
     note_by_id: typing.Optional[NoteGQLModel] = strawberry.field(
-        description="Fetches note by its identifier",
+        description="Fetches a single note by its identifier (returns null when the note is not visible)",
         permission_classes=[OnlyForAuthentized],
         resolver=NoteGQLModel.load_with_loader,
     )
 
     note_page: typing.List[NoteGQLModel] = strawberry.field(
-        description="Returns notes matching given criteria",
+        description="Returns notes matching the provided filter (title/content/owner/creator)",
         permission_classes=[OnlyForAuthentized],
         resolver=PageResolver[NoteGQLModel](whereType=NoteInputFilter),
     )
@@ -128,12 +133,12 @@ class NoteQuery:
 # region Notes mutations
 
 
-@strawberry.input(description="Input type for creating a note")
+@strawberry.input(description="Input type for creating a note owned by the authenticated user")
 class NoteInsertGQLModel(InputModelMixin):
     getLoader = NoteGQLModel.getLoader
 
     id: typing.Optional[IDType] = strawberry.field(
-        description="Client provided note id", default=None
+        description="Client provided note id (omit to let the server generate one)", default=None
     )
     title: typing.Optional[str] = strawberry.field(
         description="Note title", default=None
@@ -144,16 +149,19 @@ class NoteInsertGQLModel(InputModelMixin):
     owner_id: typing.Optional[IDType] = strawberry.field(
         description="Owner identifier, defaults to current user", default=None
     )
-
     rbacobject_id: strawberry.Private[IDType] = None
     createdby_id: strawberry.Private[IDType] = None
     changedby_id: strawberry.Private[IDType] = None
 
 
-@strawberry.input(description="Input type for updating a note")
+@strawberry.input(
+    description="Input type for updating a note using optimistic locking via lastchange"
+)
 class NoteUpdateGQLModel:
     id: IDType = strawberry.field(description="Note identifier")
-    lastchange: datetime.datetime = strawberry.field(description="timestamp")
+    lastchange: datetime.datetime = strawberry.field(
+        description="Last known timestamp of the note used for optimistic locking"
+    )
     title: typing.Optional[str] = strawberry.field(description="Note title", default=None)
     content: typing.Optional[str] = strawberry.field(
         description="Note content", default=None
@@ -161,25 +169,25 @@ class NoteUpdateGQLModel:
     owner_id: typing.Optional[IDType] = strawberry.field(
         description="Owner identifier", default=None
     )
+    
 
-    changedby_id: strawberry.Private[IDType] = None
 
-
-@strawberry.input(description="Input type for deleting a note")
+@strawberry.input(
+    description="Input type for deleting a note; requires the last known timestamp to avoid deleting a stale version"
+)
 class NoteDeleteGQLModel:
     id: IDType = strawberry.field(description="Note identifier")
-    lastchange: datetime.datetime = strawberry.field(description="timestamp")
+    lastchange: datetime.datetime = strawberry.field(
+        description="Last known timestamp of the note used for optimistic locking"
+    )
 
 
 @strawberry.type(description="Mutation support for notes")
 class NoteMutation:
     @strawberry.field(
-        description="Creates a note. Defaults owner to caller if omitted",
+        description="Creates a note owned by the authenticated user",
         permission_classes=[OnlyForAuthentized],
         extensions=[
-            UserAccessControlExtension[InsertError, NoteGQLModel](
-                roles=NOTE_ALLOWED_ROLES
-            ),
             UserRoleProviderExtension[InsertError, NoteGQLModel](),
             RbacInsertProviderExtension[InsertError, NoteGQLModel](),
             NoteInsertPrepareExtension(),
@@ -188,9 +196,15 @@ class NoteMutation:
     async def note_insert(
         self,
         info: strawberry.types.Info,
-        note: NoteInsertGQLModel,
-        rbacobject_id: IDType,
-        user_roles: typing.List[dict],
+        note: NoteInsertGQLModel = strawberry.argument(
+            description="Payload with the title/content values for the new note"
+        ),
+        rbacobject_id: IDType = strawberry.argument(
+            description="RBAC object id derived from the note; injected by RBAC extensions"
+        ),
+        user_roles: typing.List[dict] = strawberry.argument(
+            description="Caller roles injected by UserRoleProviderExtension"
+        ),
     ) -> typing.Union[NoteGQLModel, InsertError[NoteGQLModel]]:
         user = getUserFromInfo(info=info)
         user_id = IDType(user["id"])
@@ -213,10 +227,18 @@ class NoteMutation:
     async def note_update(
         self,
         info: strawberry.types.Info,
-        note: NoteUpdateGQLModel,
-        db_row: typing.Any,
-        rbacobject_id: IDType,
-        user_roles: typing.List[dict],
+        note: NoteUpdateGQLModel = strawberry.argument(
+            description="Note payload including id and lastchange to be updated"
+        ),
+        db_row: typing.Any = strawberry.argument(
+            description="Existing note row loaded by LoadDataExtension"
+        ),
+        rbacobject_id: IDType = strawberry.argument(
+            description="RBAC object id of the target note resolved by RBAC extensions"
+        ),
+        user_roles: typing.List[dict] = strawberry.argument(
+            description="Caller roles injected by UserRoleProviderExtension"
+        ),
     ) -> typing.Union[NoteGQLModel, UpdateError[NoteGQLModel]]:
         user = getUserFromInfo(info=info)
         user_id = IDType(user["id"])
@@ -224,7 +246,7 @@ class NoteMutation:
         return await Update[NoteGQLModel].DoItSafeWay(info=info, entity=note)
 
     @strawberry.field(
-        description="Deletes an existing note",
+        description="Deletes an existing note using optimistic locking via lastchange",
         permission_classes=[OnlyForAuthentized],
         extensions=[
             UserAccessControlExtension[DeleteError, NoteGQLModel](
@@ -238,10 +260,18 @@ class NoteMutation:
     async def note_delete(
         self,
         info: strawberry.types.Info,
-        note: NoteDeleteGQLModel,
-        db_row: typing.Any,
-        rbacobject_id: IDType,
-        user_roles: typing.List[dict],
+        note: NoteDeleteGQLModel = strawberry.argument(
+            description="Target note identifier with the lastchange timestamp"
+        ),
+        db_row: typing.Any = strawberry.argument(
+            description="Existing note row loaded by LoadDataExtension"
+        ),
+        rbacobject_id: IDType = strawberry.argument(
+            description="RBAC object id of the target note resolved by RBAC extensions"
+        ),
+        user_roles: typing.List[dict] = strawberry.argument(
+            description="Caller roles injected by UserRoleProviderExtension"
+        ),
     ) -> typing.Optional[DeleteError[NoteGQLModel]]:
         return await Delete[NoteGQLModel].DoItSafeWay(info=info, entity=note)
 
