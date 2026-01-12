@@ -1,6 +1,7 @@
+import asyncio
+import re
 import sqlalchemy
 import sys
-import asyncio
 
 # setting path
 sys.path.append("../gql_events")
@@ -9,7 +10,7 @@ import pytest
 
 # from ..uoishelpers.uuid import UUIDColumn
 
-from DBDefinitions import BaseModel, EventModel
+from DBDefinitions import BaseModel, EventInvitationModel, EventModel, NoteModel
 
 
 async def prepare_in_memory_sqllite():
@@ -40,16 +41,43 @@ async def prepare_demodata(async_session_maker):
     await ImportModels(
         async_session_maker,
         [
-            EventModel
+            EventModel,
+            EventInvitationModel,
+            NoteModel,
         ],
         data,
     )
 
 
 from utils.Dataloaders import createLoadersContext
+from uoishelpers.schema.ProfilingExtension import Counter as ProfilingCounter
+from typing import Any, Dict
+
+async def fake_ug_client(query: str, variables: Dict[str, Any] | None = None):
+    aliases = re.findall(r"item\d+", query)
+    if "userCanWithState" in query or "userCanWithoutState" in query:
+        payload = {"result": True}
+    elif "roles(" in query or "roles " in query:
+        payload = {"result": []}
+    else:
+        payload = {}
+    return {"data": {alias: payload for alias in aliases}}
+
+class DummyRoleLoader:
+    async def load(self, params):
+        return {"result": []}
+
+class DummyAccessLoader:
+    async def load(self, params):
+        return {"result": True}
 
 def createContext(asyncSessionMaker, withuser=True):
     loadersContext = createLoadersContext(asyncSessionMaker)
+    loadersContext["ProfilingExtension.counter"] = ProfilingCounter()
+    loadersContext["ug_client"] = fake_ug_client
+    loadersContext["userRolesForRBACQuery_loader"] = DummyRoleLoader()
+    loadersContext["userCanWithState_loader"] = DummyAccessLoader()
+    loadersContext["userCanWithoutState_loader"] = DummyAccessLoader()
     user = {
         "id": "2d9dc5ca-a4a2-11ed-b9df-0242ac120003",
         "name": "John",

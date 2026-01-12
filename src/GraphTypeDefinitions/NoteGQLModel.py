@@ -34,10 +34,13 @@ from uoishelpers.resolvers import (
 from .BaseGQLModel import BaseGQLModel, IDType
 
 
+#TODO: 
+
+
 UserGQLModel = typing.Annotated["UserGQLModel", strawberry.lazy(".UserGQLModel")]
 
-NOTE_ALLOWED_ROLES = ["note-owner", "note-editor", "administrátor"]
-#NOTE_ALLOWED_ROLES = ["note-owner", "note-editor"]
+#NOTE_ALLOWED_ROLES = ["administrátor"]
+NOTE_ALLOWED_ROLES = []
 
 class NoteInsertPrepareExtension(FieldExtension):
     """
@@ -275,6 +278,7 @@ class NoteMutation:
             description="Caller roles injected by UserRoleProviderExtension"
         ),
     ) -> typing.Optional[DeleteError[NoteGQLModel]]:
+        
         return await Delete[NoteGQLModel].DoItSafeWay(info=info, entity=note)
 
     @strawberry.field(

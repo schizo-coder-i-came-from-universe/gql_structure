@@ -2,15 +2,12 @@
 # from functools import cache
 
 from src.DBDefinitions import BaseModel
-from src.DBDefinitions import (
-    EventModel,
-    EventInvitationModel,
-    NoteModel,
-)
+from src.DBDefinitions import EventInvitationModel, EventModel, NoteModel
 
 from uoishelpers.dataloaders.LoaderMapBase import LoaderMapBase
 from uoishelpers.dataloaders.IDLoader import IDLoader
 import src.DBDefinitions
+import typing
 
 class LoaderMap(LoaderMapBase[BaseModel]):
     """LoaderMap is a map of IDLoaders for all models in the BaseModel registry.
@@ -31,7 +28,19 @@ class LoaderMap(LoaderMapBase[BaseModel]):
 
         # print(f"LoaderMap created with session: {session}")
 
+def _ensure_session(session_or_factory: typing.Any):
+    """
+    IDLoader expects an AsyncSession instance. Accept either a session or a
+    sessionmaker/factory and return an active session instance.
+    """
+    if hasattr(session_or_factory, "identity_map"):
+        return session_or_factory
+    if callable(session_or_factory):
+        return session_or_factory()
+    return session_or_factory
+
 def createLoadersContext(session):
+    real_session = _ensure_session(session)
     return {
-        "loaders": LoaderMap(session)
+        "loaders": LoaderMap(real_session)
     }

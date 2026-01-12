@@ -10347,17 +10347,17 @@
             "lastchange": "2024-08-11T21:45:07.000000",
             "createdby_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e",
             "changedby_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e",
-            "rbacobject_id": null
+            "rbacobject_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e"
         },
         {
             "id": "1bc6b810-76d3-4d30-bf01-d1914c917650",
-            "title": "Shared lesson note",
-            "content": "Contains details shared with collaborators",
+            "title": "Note 2",
+            "content": "Druhy poznamky",
             "created": "2024-08-11T21:45:07.100000",
             "lastchange": "2024-08-11T21:45:07.100000",
             "createdby_id": "b141a228-f780-4116-9bf1-d5f2c60478f8",
             "changedby_id": "b141a228-f780-4116-9bf1-d5f2c60478f8",
-            "rbacobject_id": null
+            "rbacobject_id": "b141a228-f780-4116-9bf1-d5f2c60478f8"
         }
     ]
 

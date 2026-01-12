@@ -13291,8 +13291,8 @@
         "event_invitations_evolution": [
             {
                 "id": "35e5b9fe-3ee9-4d1b-83da-18b64af95619",
-                "created": "2026-01-11 12:25:30.796668",
-                "lastchange": "2026-01-11 12:25:30.796668",
+                "created": "2026-01-12 08:31:27.459639",
+                "lastchange": "2026-01-12 08:31:27.459639",
                 "createdby_id": null,
                 "changedby_id": null,
                 "rbacobject_id": null,
@@ -13311,7 +13311,7 @@
                 "lastchange": "2024-08-11 21:45:07",
                 "createdby_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e",
                 "changedby_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e",
-                "rbacobject_id": null,
+                "rbacobject_id": "09b753da-c84c-4405-a7b3-2a2d7989e04e",
                 "title": "First demo note",
                 "content": "Illustrates how personal notes are stored",
                 "_chunk": 0
@@ -13322,20 +13322,9 @@
                 "lastchange": "2024-08-11 21:45:07.100000",
                 "createdby_id": "b141a228-f780-4116-9bf1-d5f2c60478f8",
                 "changedby_id": "b141a228-f780-4116-9bf1-d5f2c60478f8",
-                "rbacobject_id": null,
-                "title": "Shared lesson note",
-                "content": "Contains details shared with collaborators",
-                "_chunk": 0
-            },
-            {
-                "id": "a7086d09-46f6-4962-b8c0-de1642b5992f",
-                "created": "2026-01-11 12:30:15.305291",
-                "lastchange": "2026-01-11 12:30:15.305291",
-                "createdby_id": "51d101a0-81f1-44ca-8366-6cf51432e8d6",
-                "changedby_id": "51d101a0-81f1-44ca-8366-6cf51432e8d6",
-                "rbacobject_id": "51d101a0-81f1-44ca-8366-6cf51432e8d6",
-                "title": "ahoj",
-                "content": "Toto je mnou vlozeny note",
+                "rbacobject_id": "b141a228-f780-4116-9bf1-d5f2c60478f8",
+                "title": "Note 2",
+                "content": "Druhy poznamky",
                 "_chunk": 0
             }
         ]

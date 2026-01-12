@@ -1,5 +1,8 @@
 import os
 import socket
+import subprocess
+import sys
+import threading
 import asyncio
 
 from contextlib import asynccontextmanager
@@ -47,6 +50,51 @@ if SYSLOGHOST is not None:
 # from gql_workflow.DBFeeder import createSystemDataStructureRoleTypes, createSystemDataStructureGroupTypes
 
 connectionString = ComposeConnectionString()
+_tests_started = False
+_tests_lock = threading.Lock()
+
+def start_prestartup_tests_once():
+    """
+    Fire-and-forget runner for quick smoke tests so reload/start shows status in logs.
+    Runs only once per process to avoid repeated load under uvicorn reload loops.
+    """
+    global _tests_started
+    with _tests_lock:
+        if _tests_started:
+            return
+        _tests_started = True
+
+    def _runner():
+        cmd = [sys.executable, "-m", "pytest", "tests/test_notes.py", "-q"]
+        logging.info("Pre-startup tests: running '%s'", " ".join(cmd))
+        try:
+            env = os.environ.copy()
+            # Ensure local modules (src/) are importable when launched from uvicorn
+            src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "src"))
+            existing_pp = env.get("PYTHONPATH", "")
+            env["PYTHONPATH"] = src_path if not existing_pp else f"{src_path}:{existing_pp}"
+            proc = subprocess.run(
+                cmd,
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            stdout = (proc.stdout or "").strip()
+            stderr = (proc.stderr or "").strip()
+            if proc.returncode == 0:
+                logging.info("Pre-startup tests PASSED\n%s", stdout)
+            else:
+                logging.error(
+                    "Pre-startup tests FAILED (exit %s)\nSTDOUT:\n%s\nSTDERR:\n%s",
+                    proc.returncode,
+                    stdout,
+                    stderr,
+                )
+        except Exception as exc:  # pragma: no cover - defensive
+            logging.exception("Pre-startup tests crashed: %s", exc)
+
+    threading.Thread(target=_runner, daemon=True).start()
 
 def singleCall(asyncFunc):
     """Dekorator, ktery dovoli, aby dekorovana funkce byla volana (vycislena) jen jednou. Navratova hodnota je zapamatovana a pri dalsich volanich vracena.
@@ -83,6 +131,7 @@ async def RunOnceAndReturnSessionMaker():
         await initDB(result)
         logging.info(f"all done")
         print(f"all done")
+        start_prestartup_tests_once()
 
     # asyncio.create_task(coro=initDBAndReport())
     await initDBAndReport()
