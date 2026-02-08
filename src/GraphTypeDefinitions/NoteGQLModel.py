@@ -34,7 +34,7 @@ from uoishelpers.resolvers import (
 from .BaseGQLModel import BaseGQLModel, IDType
 
 
-#TODO: 
+#TODO: zlepsit testy
 
 
 UserGQLModel = typing.Annotated["UserGQLModel", strawberry.lazy(".UserGQLModel")]

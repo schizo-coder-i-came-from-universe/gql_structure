@@ -271,7 +271,7 @@ async def test_note_update_rejects_stale_lastchange():
 
 
 @pytest.mark.asyncio
-async def test_note_update_and_delete_reject_non_owner():
+async def test_note_update_and_delete_reject_non_admin():
     async_session_maker = await prepare_in_memory_sqllite()
     await prepare_demodata(async_session_maker)
 
@@ -291,7 +291,7 @@ async def test_note_update_and_delete_reject_non_owner():
         insert_query,
         variable_values={
             "title": "Owner note",
-            "content": "Non-owner should not touch me",
+            "content": "Non-admin should not touch me",
         },
         context_value=owner_context,
     )
