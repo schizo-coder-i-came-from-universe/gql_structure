@@ -49,6 +49,7 @@ class NoteInsertPrepareExtension(FieldExtension):
     """
 
     async def resolve_async(self, next_, source, info: strawberry.types.Info, *args, **kwargs):
+        """Inject rbacobject_id into the note input using the current user if missing."""
         note_input = kwargs.get("note", None)
         if note_input is not None:
             target_rbacobject = getattr(note_input, "rbacobject_id", None)
@@ -80,6 +81,7 @@ class NoteInputFilter:
 class NoteGQLModel(BaseGQLModel):
     @classmethod
     def getLoader(cls, info: strawberry.types.Info):
+        """Return the dataloader capable of fetching Note rows for this request."""
         return getLoadersFromInfo(info).NoteModel
 
     title: typing.Optional[str] = strawberry.field(
@@ -183,6 +185,7 @@ class NoteMutation:
             description="Caller roles injected by UserRoleProviderExtension"
         ),
     ) -> typing.Union[NoteGQLModel, InsertError[NoteGQLModel]]:
+        """Create a new note for the authenticated user and persist it via Insert helper."""
         user = getUserFromInfo(info=info)
         user_id = IDType(user["id"])
         note.createdby_id = user_id
@@ -217,6 +220,7 @@ class NoteMutation:
             description="Caller roles injected by UserRoleProviderExtension"
         ),
     ) -> typing.Union[NoteGQLModel, UpdateError[NoteGQLModel]]:
+        """Update a note after RBAC checks, setting changedby to the current user."""
         user = getUserFromInfo(info=info)
         user_id = IDType(user["id"])
         note.changedby_id = user_id
@@ -237,6 +241,7 @@ class NoteMutation:
             description="Existing note row loaded by LoadDataExtension"
         ),
     ) -> typing.Union[NoteGQLModel, UpdateError[NoteGQLModel]]:
+        """Allow updates only for notes created by the current user; reject otherwise."""
         user = getUserFromInfo(info=info)
         user_id = IDType(user["id"])
 
@@ -278,6 +283,7 @@ class NoteMutation:
             description="Caller roles injected by UserRoleProviderExtension"
         ),
     ) -> typing.Optional[DeleteError[NoteGQLModel]]:
+        """Delete a note using RBAC and optimistic locking safeguards."""
         
         return await Delete[NoteGQLModel].DoItSafeWay(info=info, entity=note)
 
@@ -296,6 +302,7 @@ class NoteMutation:
             description="Existing note row loaded by LoadDataExtension"
         ),
     ) -> typing.Optional[DeleteError[NoteGQLModel]]:
+        """Delete a note only if the current user is its creator; otherwise return an error."""
         user = getUserFromInfo(info=info)
         user_id = IDType(user["id"])
 
